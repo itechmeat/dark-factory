@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dark Factory - a lights-out factory for software</title>
+<meta name="description" content="Send an idea before bed and wake up to a deployed URL. Dark Factory is a lights-out factory for software, run by a team of agents.">
+<style>
+  :root {
+    --ground: #0A0D15;
+    --surface: #10141E;
+    --surface-2: #161B27;
+    --line: #232A39;
+    --line-soft: #1A202C;
+    --text: #ECEEF3;
+    --muted: #8A91A3;
+    --faint: #5A6273;
+    --accent: #F7A23B;
+    --accent-deep: #E2862A;
+    --accent-soft: rgba(247, 162, 59, 0.12);
+    --accent-line: rgba(247, 162, 59, 0.32);
+    --memory: #6FD0C8;
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, monospace;
+    --maxw: 1120px;
+    --pad: clamp(20px, 5vw, 56px);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--accent); color: #1a1205; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- shared structure ---------- */
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding-inline: var(--pad); position: relative; z-index: 2; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); display: inline-flex; align-items: center; gap: 10px; margin: 0 0 22px;
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--accent-line); }
+  .eyebrow.mem { color: var(--memory); }
+
+  h1, h2, h3 { font-weight: 650; letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
+  .display { font-size: clamp(44px, 8vw, 92px); font-weight: 680; letter-spacing: -0.035em; line-height: 0.98; }
+  h2 { font-size: clamp(30px, 4.4vw, 48px); }
+  h3 { font-size: 20px; letter-spacing: -0.01em; }
+
+  .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 54ch; }
+  p { margin: 0; }
+
+  section { position: relative; }
+  .band { padding-block: clamp(72px, 11vw, 144px); border-top: 1px solid var(--line-soft); position: relative; overflow: hidden; }
+
+  .sec-head { max-width: 60ch; }
+  .sec-head h2 { margin-top: 4px; }
+  .sec-head .lede { margin-top: 22px; }
+
+  /* two-column layout, stacks on mobile */
+  .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(36px, 5vw, 72px); align-items: center; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; gap: 44px; } }
+
+  .figure { width: 100%; height: auto; display: block; }
+
+  /* faint background motif */
+  .band-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
+  .band-bg svg { position: absolute; }
+
+  /* reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+  /* ---------- nav ---------- */
+
+  .nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(10px); background: rgba(10, 13, 21, 0.72); border-bottom: 1px solid transparent; transition: border-color 0.3s ease; }
+  .nav.scrolled { border-bottom-color: var(--line-soft); }
+  .nav .row { display: flex; align-items: center; justify-content: space-between; height: 66px; }
+  .brand { display: inline-flex; align-items: center; gap: 11px; font-family: var(--mono); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text); }
+  .brand .dot { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); animation: blink 3.4s ease-in-out infinite; }
+  @keyframes blink {
+    0%, 100% { box-shadow: 0 0 12px 1px rgba(247,162,59,0.55); opacity: 1; }
+    50% { box-shadow: 0 0 3px 0 rgba(247,162,59,0.2); opacity: 0.55; }
+  }
+  @media (prefers-reduced-motion: reduce) { .brand .dot { animation: none; } }
+
+  .nav-links { display: flex; align-items: center; gap: 30px; }
+  .nav-links a { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--muted); transition: color 0.2s ease; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; padding: 9px 16px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); transition: border-color 0.2s ease, background 0.2s ease; }
+  .nav-cta:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+  @media (max-width: 760px) { .nav-links .hide-sm { display: none; } }
+
+  /* ---------- hero ---------- */
+
+  .hero { position: relative; padding-top: clamp(56px, 9vw, 104px); padding-bottom: clamp(40px, 7vw, 72px); overflow: hidden; }
+  #floor { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  .hero-grad {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(120% 80% at 78% 8%, rgba(247,162,59,0.08), transparent 55%),
+                linear-gradient(90deg, var(--ground) 18%, rgba(10,13,21,0.4) 52%, transparent 72%),
+                linear-gradient(180deg, transparent 45%, var(--ground) 97%);
+  }
+  .hero-mark {
+    position: absolute; z-index: 1; pointer-events: none;
+    right: clamp(-40px, -2vw, 24px); top: 50%; transform: translateY(-52%);
+    width: clamp(340px, 44vw, 640px); height: auto; opacity: 0.22;
+    -webkit-mask-image: radial-gradient(70% 70% at 60% 45%, #000 35%, transparent 78%);
+    mask-image: radial-gradient(70% 70% at 60% 45%, #000 35%, transparent 78%);
+    filter: drop-shadow(0 0 40px rgba(247,162,59,0.12));
+  }
+  .hero-mark-cap {
+    position: absolute; z-index: 3; pointer-events: none;
+    right: clamp(20px, 4vw, 56px); bottom: clamp(110px, 16vw, 150px);
+    text-align: right; font-family: var(--mono); font-size: 12px; letter-spacing: 0.05em; line-height: 1.5;
+    color: var(--muted); max-width: 30ch;
+  }
+  .hero-mark-cap b { display: block; color: var(--accent); letter-spacing: 0.16em; text-transform: uppercase; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  @media (max-width: 900px) {
+    .hero { padding-bottom: 132px; }
+    .hero-mark { opacity: 0.1; }
+    .hero-mark-cap { bottom: 32px; }
+  }
+  .hero-tag { font-family: var(--mono); font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); margin: 0 0 26px; }
+  .hero h1 { max-width: 15ch; }
+  .hero .lede { margin-top: 26px; max-width: 50ch; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 38px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; padding: 14px 22px; border-radius: 9px; border: 1px solid transparent; transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease; }
+  .btn-primary { background: var(--accent); color: #1a1205; font-weight: 600; }
+  .btn-primary:hover { background: #ffb152; transform: translateY(-1px); }
+  .btn-ghost { border-color: var(--line); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--accent-line); background: var(--accent-soft); transform: translateY(-1px); }
+
+  .status-strip { margin-top: clamp(48px, 7vw, 84px); display: flex; flex-wrap: wrap; gap: 10px 30px; padding-top: 22px; border-top: 1px solid var(--line-soft); font-family: var(--mono); font-size: 12px; letter-spacing: 0.05em; color: var(--muted); }
+  .status-strip span { display: inline-flex; align-items: center; gap: 9px; }
+  .status-strip span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent-line); }
+
+  /* ---------- contrast: problem / idea ---------- */
+
+  .contrast { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: stretch; gap: 0; }
+  @media (max-width: 860px) { .contrast { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 18px; padding: clamp(28px, 3.5vw, 40px); background: var(--surface); display: flex; flex-direction: column; }
+  .panel.idea { background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-color: var(--accent-line); }
+  .panel h3 { font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.02em; margin-bottom: 14px; }
+  .panel p { color: var(--muted); font-size: 16px; }
+  .panel .pfig { margin-top: auto; padding-top: 30px; }
+  .connector { display: grid; place-items: center; }
+  .connector svg { width: 40px; height: 40px; color: var(--accent); }
+  @media (max-width: 860px) {
+    .connector { padding: 18px 0; }
+    .connector svg { transform: rotate(90deg); }
+  }
+
+  /* ---------- foundation ---------- */
+
+  .pillars { margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 860px) { .pillars { grid-template-columns: 1fr; } }
+  .pillar { position: relative; background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--line); border-radius: 16px; padding: 34px 32px 30px; overflow: hidden; }
+  .pillar::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .pillar.mem::before { background: var(--memory); }
+  .pillar .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  .pillar.mem .tag { color: var(--memory); }
+  .pillar .role { display: block; font-family: var(--mono); font-size: 12px; color: var(--faint); margin-bottom: 14px; letter-spacing: 0.04em; }
+  .pillar h3 { margin-bottom: 12px; }
+  .pillar p { color: var(--muted); font-size: 15.5px; }
+
+  .pillar-note { margin-top: 22px; font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--muted); letter-spacing: 0.02em; border: 1px solid var(--line-soft); border-radius: 12px; padding: 18px 22px; background: var(--surface); }
+  .pillar-note b { color: var(--text); font-weight: 600; }
+
+  /* ---------- architecture ---------- */
+
+  .arch-head { margin-bottom: clamp(40px, 6vw, 64px); }
+  .iso-wrap { display: grid; place-items: center; }
+  .iso-wrap svg { width: min(100%, 360px); height: auto; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .grid-3 { grid-template-columns: 1fr; } }
+  .acard { border: 1px solid var(--line); border-radius: 16px; padding: 30px 28px; background: var(--surface); transition: border-color 0.25s ease, transform 0.25s ease; }
+  .acard:hover { border-color: var(--accent-line); transform: translateY(-3px); }
+  .acard .ix { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 0.1em; display: inline-block; margin-bottom: 18px; padding: 4px 9px; border: 1px solid var(--accent-line); border-radius: 6px; }
+  .acard h3 { margin-bottom: 10px; }
+  .acard p { color: var(--muted); font-size: 15px; }
+
+  /* ---------- pipeline ---------- */
+
+  .pipe { position: relative; }
+  .pipe::before { content: ""; position: absolute; left: 19px; top: 14px; bottom: 14px; width: 2px; background: linear-gradient(180deg, var(--accent-line), var(--line-soft)); }
+  @media (max-width: 560px) { .pipe::before { left: 13px; } }
+  .step { position: relative; display: grid; grid-template-columns: 40px 1fr; gap: 24px; padding: 18px 0; }
+  .step .node { position: relative; z-index: 2; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--mono); font-size: 13px; color: var(--accent); transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+  @media (max-width: 560px) { .step { grid-template-columns: 28px 1fr; gap: 18px; } .step .node { width: 28px; height: 28px; font-size: 11px; } }
+  .step.in .node { border-color: var(--accent); box-shadow: 0 0 18px var(--accent-soft); }
+  .step h3 { margin-bottom: 6px; font-size: 19px; }
+  .step p { color: var(--muted); font-size: 15px; max-width: 48ch; }
+  .kanban-wrap { display: grid; place-items: center; }
+  .kanban-wrap svg { width: 100%; max-width: 440px; height: auto; }
+  @media (max-width: 860px) { .kanban-wrap { order: -1; } }
+
+  /* ---------- callout (beyond) ---------- */
+
+  .callout { border: 1px solid var(--line); border-radius: 18px; padding: clamp(32px, 5vw, 56px); background: radial-gradient(90% 120% at 100% 0%, rgba(247,162,59,0.08), transparent 60%), var(--surface); position: relative; overflow: hidden; }
+  .callout h2 { max-width: 18ch; }
+  .callout .lede { margin-top: 20px; }
+
+  /* ---------- demo ---------- */
+
+  .video-frame { margin-top: 48px; position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); aspect-ratio: 16 / 9; background: #0b0e16; }
+  .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .video-note { margin-top: 16px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--faint); }
+  .video-note b { color: var(--accent); font-weight: 500; }
+
+  /* ---------- how to use ---------- */
+
+  .howto-card { background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--line); border-radius: 16px; padding: clamp(26px, 3vw, 34px); display: flex; flex-direction: column; gap: 18px; }
+  .howto-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+  .howto-prompt { font-family: var(--mono); font-size: 14px; line-height: 1.65; color: var(--text); background: var(--ground); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: 10px; padding: 18px 20px; margin: 0; }
+  .howto-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .howto-hint { font-family: var(--mono); font-size: 12px; letter-spacing: 0.02em; color: var(--faint); }
+  .btn { cursor: pointer; }
+  button.btn { appearance: none; -webkit-appearance: none; }
+
+  /* ---------- what's next ---------- */
+
+  .xloop-wrap { display: grid; place-items: center; }
+  .xloop-wrap svg { width: 100%; max-width: 400px; height: auto; }
+
+  /* ---------- footer ---------- */
+
+  .foot { border-top: 1px solid var(--line-soft); padding-block: clamp(56px, 8vw, 88px) 48px; }
+  .foot-top { display: grid; grid-template-columns: 1.3fr 1fr; gap: 48px; }
+  @media (max-width: 760px) { .foot-top { grid-template-columns: 1fr; gap: 40px; } }
+  .foot-brand { max-width: 34ch; }
+  .foot-brand .brand { margin-bottom: 18px; }
+  .foot-brand p { color: var(--muted); font-size: 15px; }
+  .foot-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px 48px; }
+  .foot-col h4 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); margin: 0 0 16px; font-weight: 500; }
+  .foot-col a { display: block; color: var(--muted); font-size: 14.5px; padding: 5px 0; transition: color 0.2s ease; }
+  .foot-col a:hover { color: var(--accent); }
+  .foot-bottom { margin-top: clamp(48px, 7vw, 76px); padding-top: 26px; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--faint); }
+
+  /* svg helpers */
+  .stroke-soft { stroke: rgba(120,135,165,0.18); }
+  @media (prefers-reduced-motion: no-preference) {
+    .kpulse { animation: kpulse 2.6s ease-in-out infinite; }
+  }
+  @keyframes kpulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+</style>
+</head>
+<body id="top">
+
+<nav class="nav" id="nav">
+  <div class="wrap row">
+    <a class="brand" href="#top"><span class="dot"></span>Dark Factory</a>
+    <div class="nav-links">
+      <a class="hide-sm" href="#use">Setup</a>
+      <a class="hide-sm" href="#concept">Concept</a>
+      <a class="hide-sm" href="#foundation">Foundation</a>
+      <a class="hide-sm" href="#pipeline">Pipeline</a>
+      <a class="hide-sm" href="#demo">Demo</a>
+      <a class="nav-cta" href="#demo">Watch the demo</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <canvas id="floor"></canvas>
+  <img class="hero-mark" src="assets/hermes-caduceus.svg" alt="" aria-hidden="true">
+  <div class="hero-grad"></div>
+  <p class="hero-mark-cap" aria-hidden="true"><b>Hermes Agent</b>The runtime that keeps the factory alive.</p>
+  <div class="wrap">
+    <p class="hero-tag">Autonomous software factory</p>
+    <h1 class="display">You sleep.<br>The factory ships.</h1>
+    <p class="lede">Send an idea before bed and wake up to a deployed URL. Dark Factory is a lights-out factory for software: a team of agents that scopes, builds, and ships real projects while you are away.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#demo">Watch the demo</a>
+      <a class="btn btn-ghost" href="#concept">See how it works</a>
+    </div>
+    <div class="status-strip">
+      <span>Runs 24/7 on a server</span>
+      <span>No code written by hand</span>
+      <span>Remembers every project</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- how to use -->
+  <section class="band" id="use">
+    <div class="wrap">
+      <div class="split">
+        <div class="sec-head">
+          <p class="eyebrow">How to use</p>
+          <h2>You don't install it. Your agent does.</h2>
+          <p class="lede">Copy the setup guide and paste it to your coding agent - Claude Code, Hermes, Cursor, whatever you run. It reads the steps and walks you through standing up the whole factory: the host, the runtime, the memory, and your first workflow.</p>
+        </div>
+        <div class="howto-card reveal">
+          <span class="howto-label">Paste this to your agent</span>
+          <p class="howto-prompt" id="howtoPrompt">Set up Dark Factory for me. Read the guide at http://dark-factory.techmeat.dev/LLMS.txt and follow it step by step, asking me whatever you need as you go.</p>
+          <div class="howto-actions">
+            <button class="btn btn-primary" id="copyGuide" type="button">Copy setup guide</button>
+            <a class="btn btn-ghost" href="http://dark-factory.techmeat.dev/LLMS.txt" target="_blank" rel="noopener">View the guide</a>
+          </div>
+          <span class="howto-hint" id="copyHint">Copies the full step-by-step guide to your clipboard.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- problem / idea -->
+  <section class="band" id="concept">
+    <div class="band-bg" aria-hidden="true">
+      <svg width="640" height="400" viewBox="0 0 640 400" style="right:-60px;top:40px" fill="none">
+        <g stroke="rgba(120,135,165,0.14)" stroke-width="1">
+          <path d="M120 60 L320 140 L520 60 M320 140 L320 320 M120 60 L120 240 L320 320 L520 240 L520 60"/>
+          <circle cx="120" cy="60" r="4" fill="rgba(247,162,59,0.3)" stroke="none"/>
+          <circle cx="520" cy="60" r="4" fill="rgba(247,162,59,0.3)" stroke="none"/>
+          <circle cx="320" cy="140" r="4" fill="rgba(247,162,59,0.3)" stroke="none"/>
+          <circle cx="320" cy="320" r="4" fill="rgba(247,162,59,0.3)" stroke="none"/>
+        </g>
+      </svg>
+    </div>
+    <div class="wrap">
+      <div class="contrast reveal">
+        <article class="panel">
+          <p class="eyebrow">The problem</p>
+          <h3>Ideas die in the gap</h3>
+          <p>An idea hits at 2am. You turn it over. By morning it is still just a thought, lost between everything else on your plate. The distance between "I have an idea" and "it is live" is where most ideas quietly die.</p>
+          <div class="pfig">
+            <svg class="figure" viewBox="0 0 320 120" fill="none" aria-hidden="true">
+              <g stroke="rgba(138,145,163,0.5)" stroke-width="1.4" stroke-linecap="round">
+                <path d="M24 60 H92" stroke-dasharray="5 7"/>
+                <path d="M150 36 L182 78" stroke-dasharray="5 7"/>
+                <path d="M210 84 L250 44" stroke-dasharray="5 7"/>
+              </g>
+              <g fill="rgba(138,145,163,0.45)">
+                <rect x="14" y="52" width="16" height="16" rx="3" transform="rotate(12 22 60)"/>
+                <rect x="116" y="28" width="16" height="16" rx="3" transform="rotate(-18 124 36)"/>
+                <rect x="190" y="76" width="16" height="16" rx="3" transform="rotate(24 198 84)"/>
+                <rect x="276" y="40" width="16" height="16" rx="3" transform="rotate(-8 284 48)"/>
+              </g>
+            </svg>
+          </div>
+        </article>
+        <div class="connector" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12 H19 M13 6 L19 12 L13 18"/>
+          </svg>
+        </div>
+        <article class="panel idea">
+          <p class="eyebrow">The idea</p>
+          <h3>Hand it to a factory</h3>
+          <p>Drop the idea into a channel. A team of agents scopes it, plans it, builds it, and ships a live URL. Any idea becomes a deployed project. The point is the factory itself, not any single thing it happens to build.</p>
+          <div class="pfig">
+            <svg class="figure" viewBox="0 0 320 120" fill="none" aria-hidden="true">
+              <path d="M28 60 H292" stroke="rgba(247,162,59,0.32)" stroke-width="1.5"/>
+              <g fill="#F7A23B">
+                <rect x="20" y="52" width="16" height="16" rx="3"/>
+                <rect x="86" y="52" width="16" height="16" rx="3"/>
+                <rect x="152" y="52" width="16" height="16" rx="3"/>
+                <rect x="218" y="52" width="16" height="16" rx="3"/>
+                <rect x="284" y="52" width="16" height="16" rx="3"/>
+              </g>
+            </svg>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- foundation -->
+  <section class="band" id="foundation">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">The foundation</p>
+        <h2>Two layers do the heavy lifting.</h2>
+        <p class="lede">Underneath everything sit two pieces that always work together: one runs the agents, the other remembers what they do.</p>
+      </div>
+      <div class="pillars">
+        <article class="pillar reveal">
+          <p class="tag">The hands</p>
+          <span class="role">Hermes Agent</span>
+          <h3>The runtime</h3>
+          <p>Hermes runs the agents and keeps the factory alive on a server, around the clock. It turns a plan into real work: the tasks, the tools, and the agents that carry them out.</p>
+        </article>
+        <article class="pillar mem reveal">
+          <p class="tag">The memory</p>
+          <span class="role">Open Second Brain</span>
+          <h3>The shared memory</h3>
+          <p>A file-based memory every agent reads and writes. It is how the factory remembers what happened in each project, no matter how many run through it at once.</p>
+        </article>
+      </div>
+      <p class="pillar-note reveal"><b>Neither works alone.</b> Hermes Agent is the hands, Open Second Brain is the memory. Together they are the floor the factory stands on.</p>
+    </div>
+  </section>
+
+  <!-- architecture -->
+  <section class="band">
+    <div class="wrap">
+      <div class="split arch-head reveal">
+        <div class="sec-head">
+          <p class="eyebrow">Architecture</p>
+          <h2>A studio, encoded.</h2>
+          <p class="lede">On top of that foundation, Dark Factory is organized like a small studio that never closes.</p>
+        </div>
+        <div class="iso-wrap" aria-hidden="true">
+          <svg viewBox="0 0 360 320" fill="none">
+            <!-- bottom slab: foundation -->
+            <g>
+              <path d="M180 155 L290 210 L180 265 L70 210 Z" fill="#1a2030" class="stroke-soft"/>
+              <path d="M70 210 L180 265 L180 291 L70 236 Z" fill="#11141e" class="stroke-soft"/>
+              <path d="M180 265 L290 210 L290 236 L180 291 Z" fill="#0d1018" class="stroke-soft"/>
+            </g>
+            <!-- mid slab -->
+            <g>
+              <path d="M180 95 L290 150 L180 205 L70 150 Z" fill="#202739" class="stroke-soft"/>
+              <path d="M70 150 L180 205 L180 231 L70 176 Z" fill="#141925" class="stroke-soft"/>
+              <path d="M180 205 L290 150 L290 176 L180 231 Z" fill="#0f131c" class="stroke-soft"/>
+            </g>
+            <!-- top slab: accented -->
+            <g>
+              <path d="M180 37 L290 92 L180 147 L70 92 Z" fill="#2c2618" stroke="rgba(247,162,59,0.4)" stroke-width="1.2"/>
+              <path d="M70 92 L180 147 L180 173 L70 118 Z" fill="#1d1a12" stroke="rgba(247,162,59,0.4)" stroke-width="1.2"/>
+              <path d="M180 147 L290 92 L290 118 L180 173 Z" fill="#15130d" stroke="rgba(247,162,59,0.4)" stroke-width="1.2"/>
+              <circle cx="180" cy="92" r="5" fill="#F7A23B"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="acard reveal">
+          <span class="ix">A</span>
+          <h3>An always-on host</h3>
+          <p>Hermes lives on a server, so the factory is reachable at any hour. Send an idea at midnight and the work starts at midnight.</p>
+        </div>
+        <div class="acard reveal">
+          <span class="ix">B</span>
+          <h3>A team of specialists</h3>
+          <p>Like a real studio: an orchestrator that runs the show, developer agents, and other roles. Each agent is focused on the one thing it does best.</p>
+        </div>
+        <div class="acard reveal">
+          <span class="ix">C</span>
+          <h3>Workflows</h3>
+          <p>Fixed playbooks the team follows, so every idea is handled the same careful way instead of being improvised from scratch each time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- pipeline -->
+  <section class="band" id="pipeline">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">How a project is born</p>
+        <h2>From a message to a live URL.</h2>
+        <p class="lede">Five steps turn a sentence in a channel into something you can open in a browser.</p>
+      </div>
+      <div class="split" style="margin-top:clamp(40px,6vw,64px)">
+        <div class="pipe">
+          <div class="step reveal">
+            <span class="node">01</span>
+            <div><h3>Drop the idea</h3><p>You post an idea into the channel, in plain language. No spec, no ticket, no setup.</p></div>
+          </div>
+          <div class="step reveal">
+            <span class="node">02</span>
+            <div><h3>A short brainstorm</h3><p>The orchestrator asks a couple of clarifying questions first, so it builds the right thing rather than just something.</p></div>
+          </div>
+          <div class="step reveal">
+            <span class="node">03</span>
+            <div><h3>Onto the board</h3><p>It breaks the work into tasks on a kanban board and hands each one to the specialist best suited to it.</p></div>
+          </div>
+          <div class="step reveal">
+            <span class="node">04</span>
+            <div><h3>Agents build</h3><p>Research, plan, code, review. The agents do the work end to end; you are not writing any of it by hand.</p></div>
+          </div>
+          <div class="step reveal">
+            <span class="node">05</span>
+            <div><h3>Ship</h3><p>The project is deployed to a live URL and the link comes back to the channel where it started.</p></div>
+          </div>
+        </div>
+        <div class="kanban-wrap reveal" aria-hidden="true">
+          <svg viewBox="0 0 440 300" fill="none" font-family="ui-monospace, SF Mono, Menlo, monospace">
+            <g>
+              <rect x="8" y="8" width="136" height="284" rx="12" fill="#0e121b" stroke="#1A202C"/>
+              <rect x="152" y="8" width="136" height="284" rx="12" fill="#0e121b" stroke="#1A202C"/>
+              <rect x="296" y="8" width="136" height="284" rx="12" fill="#0e121b" stroke="#1A202C"/>
+            </g>
+            <g fill="#5A6273" font-size="10" letter-spacing="1.5">
+              <text x="24" y="34">TO DO</text>
+              <text x="168" y="34">BUILDING</text>
+              <text x="312" y="34">SHIPPED</text>
+            </g>
+            <!-- to do -->
+            <g>
+              <rect x="24" y="52" width="104" height="34" rx="7" fill="#161b27" stroke="#232A39"/>
+              <rect x="24" y="96" width="104" height="34" rx="7" fill="#161b27" stroke="#232A39"/>
+              <rect x="36" y="64" width="64" height="4" rx="2" fill="rgba(138,145,163,0.4)"/>
+              <rect x="36" y="108" width="48" height="4" rx="2" fill="rgba(138,145,163,0.4)"/>
+            </g>
+            <!-- building -->
+            <g class="kpulse">
+              <rect x="168" y="52" width="104" height="34" rx="7" fill="rgba(247,162,59,0.14)" stroke="#F7A23B"/>
+              <rect x="180" y="64" width="56" height="4" rx="2" fill="#F7A23B"/>
+              <circle cx="258" cy="69" r="4" fill="#F7A23B"/>
+            </g>
+            <g>
+              <rect x="168" y="96" width="104" height="34" rx="7" fill="#161b27" stroke="#232A39"/>
+              <rect x="180" y="108" width="40" height="4" rx="2" fill="rgba(138,145,163,0.4)"/>
+            </g>
+            <!-- shipped -->
+            <g>
+              <rect x="312" y="52" width="104" height="34" rx="7" fill="#13201c" stroke="rgba(111,208,200,0.4)"/>
+              <rect x="324" y="64" width="52" height="4" rx="2" fill="rgba(111,208,200,0.7)"/>
+              <path d="M398 67 l4 4 l8 -8" stroke="#6FD0C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="312" y="96" width="104" height="34" rx="7" fill="#13201c" stroke="rgba(111,208,200,0.4)"/>
+              <rect x="324" y="108" width="44" height="4" rx="2" fill="rgba(111,208,200,0.7)"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- beyond -->
+  <section class="band">
+    <div class="wrap">
+      <div class="callout reveal">
+        <p class="eyebrow">Beyond day one</p>
+        <h2>It keeps working after launch.</h2>
+        <p class="lede">The same pipeline does not stop at version one. Need a feature on a project that is already live? One message in the channel, and the agents add it. The factory treats a change request like any other idea.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- demo -->
+  <section class="band" id="demo">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">See it run</p>
+        <h2>Watch the factory build, end to end.</h2>
+        <p class="lede">A short walkthrough of one idea going from a channel message to a deployed site, planned and shipped by agents.</p>
+      </div>
+      <div class="video-frame reveal">
+        <iframe src="https://www.youtube-nocookie.com/embed/J09BbfMpMAw" title="Dark Factory demo" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </div>
+      <p class="video-note reveal"><b>Preview</b> &middot; temporary cut, full walkthrough coming soon</p>
+    </div>
+  </section>
+
+  <!-- what's next -->
+  <section class="band">
+    <div class="wrap">
+      <div class="split reveal">
+        <div class="sec-head">
+          <p class="eyebrow">What's next</p>
+          <h2>Open the doors.</h2>
+          <p class="lede">Today Dark Factory runs as a private channel. Next it becomes a service anyone can use, with a viral loop on X: post an idea, mention <b style="color:var(--text);font-weight:600">@darkfactoryagent</b>, and the bot replies in the same thread with a working link. Every reply is the product demonstrating itself, in public.</p>
+        </div>
+        <div class="xloop-wrap" aria-hidden="true">
+          <svg viewBox="0 0 400 300" fill="none" font-family="ui-monospace, SF Mono, Menlo, monospace">
+            <!-- user tweet -->
+            <rect x="20" y="16" width="360" height="92" rx="14" fill="#10141E" stroke="#232A39"/>
+            <circle cx="52" cy="48" r="14" fill="#2a3142"/>
+            <rect x="76" y="38" width="70" height="6" rx="3" fill="rgba(138,145,163,0.55)"/>
+            <rect x="76" y="52" width="44" height="5" rx="2.5" fill="#5A6273"/>
+            <rect x="40" y="78" width="150" height="6" rx="3" fill="rgba(138,145,163,0.4)"/>
+            <text x="200" y="84" fill="#F7A23B" font-size="11" letter-spacing="0.5">@darkfactoryagent</text>
+            <!-- connector loop -->
+            <path d="M60 108 C60 150 60 150 60 168" stroke="rgba(247,162,59,0.32)" stroke-width="1.6" stroke-dasharray="4 5"/>
+            <path d="M56 160 L60 168 L64 160" stroke="#F7A23B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- bot reply -->
+            <rect x="20" y="176" width="360" height="104" rx="14" fill="#15120c" stroke="rgba(247,162,59,0.32)"/>
+            <circle cx="52" cy="208" r="14" fill="#F7A23B"/>
+            <path d="M46 208 l4 4 l8 -9" stroke="#1a1205" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="76" y="198" width="80" height="6" rx="3" fill="rgba(247,162,59,0.7)"/>
+            <rect x="76" y="212" width="50" height="5" rx="2.5" fill="#5A6273"/>
+            <rect x="40" y="236" width="120" height="6" rx="3" fill="rgba(138,145,163,0.4)"/>
+            <!-- link chip -->
+            <rect x="40" y="250" width="150" height="22" rx="11" fill="rgba(247,162,59,0.12)" stroke="rgba(247,162,59,0.32)"/>
+            <circle cx="56" cy="261" r="4" fill="#F7A23B"/>
+            <text x="68" y="265" fill="#F7A23B" font-size="10" letter-spacing="0.5">your-idea.live</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot" id="foot">
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a class="brand" href="#top"><span class="dot"></span>Dark Factory</a>
+        <p>A lights-out factory for software. You bring the idea; agents build, ship, and remember it.</p>
+      </div>
+      <div class="foot-cols">
+        <div>
+          <div class="foot-col">
+            <h4>Built on</h4>
+            <a href="https://github.com/itechmeat/open-second-brain" target="_blank" rel="noopener">Open Second Brain</a>
+            <a href="https://github.com/itechmeat/hermes-workflows" target="_blank" rel="noopener">Hermes Workflows</a>
+          </div>
+          <div class="foot-col" style="margin-top:32px">
+            <h4>Watch</h4>
+            <a href="https://www.youtube.com/watch?v=J09BbfMpMAw" target="_blank" rel="noopener">Demo video</a>
+          </div>
+        </div>
+        <div class="foot-col">
+          <h4>Follow</h4>
+          <a href="https://x.com/techmeat" target="_blank" rel="noopener">X / @techmeat</a>
+          <a href="https://www.linkedin.com/in/techmeat/" target="_blank" rel="noopener">LinkedIn</a>
+          <a href="https://techmeat.dev" target="_blank" rel="noopener">Blog / techmeat.dev</a>
+          <a href="https://github.com/itechmeat" target="_blank" rel="noopener">GitHub / @itechmeat</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>Dark Factory &middot; built by agents, on agents</span>
+      <span>&copy; 2026 Sergey Eroshenkov</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  var nav = document.getElementById('nav');
+  var onScroll = function () { nav.classList.toggle('scrolled', window.scrollY > 8); };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.16, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal, .step').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal, .step').forEach(function (el) { el.classList.add('in'); });
+  }
+
+  // copy the setup guide (LLMS.txt) to the clipboard
+  (function () {
+    var btn = document.getElementById('copyGuide');
+    if (!btn) return;
+    var hint = document.getElementById('copyHint');
+    var promptEl = document.getElementById('howtoPrompt');
+    var prompt = promptEl ? promptEl.textContent.trim() : 'Set up Dark Factory for me.';
+    // Prefetch the guide so the click handler can write synchronously,
+    // keeping the clipboard write inside the user-activation gesture.
+    var guideText = null;
+    fetch('LLMS.txt').then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (t) { guideText = t; }).catch(function () {});
+    btn.addEventListener('click', function () {
+      var payload = guideText
+        ? prompt + '\n\n----- Dark Factory setup guide -----\n\n' + guideText
+        : prompt;
+      navigator.clipboard.writeText(payload).then(function () {
+        btn.textContent = 'Copied';
+        if (hint) hint.textContent = guideText
+          ? 'Guide copied. Paste it into your agent and let it take over.'
+          : 'Prompt copied. Open the guide for the full steps.';
+        setTimeout(function () { btn.textContent = 'Copy setup guide'; }, 2400);
+      }).catch(function () {
+        if (hint) hint.textContent = 'Copy failed - open the guide and copy it manually.';
+      });
+    });
+  })();
+
+  // hero canvas: a dark factory line, stations light as a task token passes
+  (function () {
+    if (reduce) return;
+    var c = document.getElementById('floor');
+    if (!c) return;
+    var ctx = c.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = 0, H = 0, baseY = 0, stations = [], STN = 6;
+
+    function resize() {
+      var r = c.getBoundingClientRect();
+      W = r.width; H = r.height;
+      c.width = W * dpr; c.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      baseY = H * 0.74;
+      stations = [];
+      var m = W * 0.12;
+      for (var i = 0; i < STN; i++) stations.push({ x: m + (W - 2 * m) * (i / (STN - 1)), glow: 0 });
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    var tokenT = 0, speed = 0.0017, pulses = [], last = 0;
+
+    function loop(t) {
+      if (!last) last = t;
+      var dt = Math.min(t - last, 50); last = t;
+      ctx.clearRect(0, 0, W, H);
+      var x0 = W * 0.12, x1 = W * 0.88;
+
+      ctx.strokeStyle = 'rgba(120,135,165,0.05)';
+      ctx.lineWidth = 1;
+      for (var gx = x0; gx <= x1; gx += 46) { ctx.beginPath(); ctx.moveTo(gx, baseY - 8); ctx.lineTo(gx, baseY + 8); ctx.stroke(); }
+
+      ctx.strokeStyle = 'rgba(120,135,165,0.16)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x0, baseY); ctx.lineTo(x1, baseY); ctx.stroke();
+
+      tokenT += speed * dt;
+      if (tokenT >= 1) { tokenT = 0; pulses.push({ r: 6, a: 1 }); }
+      var tx = x0 + (x1 - x0) * tokenT;
+
+      for (var i = 0; i < stations.length; i++) {
+        var s = stations[i];
+        if (Math.abs(s.x - tx) < 16) s.glow = 1;
+        s.glow *= 0.96;
+        if (s.glow > 0.02) { ctx.beginPath(); ctx.fillStyle = 'rgba(247,162,59,' + (0.16 * s.glow) + ')'; ctx.arc(s.x, baseY, 22 * s.glow, 0, Math.PI * 2); ctx.fill(); }
+        ctx.beginPath(); ctx.fillStyle = 'rgba(247,162,59,' + (0.28 + 0.6 * s.glow) + ')'; ctx.arc(s.x, baseY, 4 + s.glow * 3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(247,162,59,' + (0.1 + 0.4 * s.glow) + ')'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(s.x, baseY); ctx.lineTo(s.x, baseY - 16 - s.glow * 20); ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(247,162,59,0.8)'; ctx.shadowBlur = 18;
+      ctx.fillStyle = '#FFB152';
+      ctx.fillRect(tx - 3.5, baseY - 3.5, 7, 7);
+      ctx.restore();
+
+      for (var p = pulses.length - 1; p >= 0; p--) {
+        var pl = pulses[p];
+        pl.r += dt * 0.05; pl.a -= dt * 0.0012;
+        if (pl.a <= 0) { pulses.splice(p, 1); continue; }
+        ctx.beginPath(); ctx.strokeStyle = 'rgba(247,162,59,' + pl.a + ')'; ctx.lineWidth = 1.5;
+        ctx.arc(x1, baseY, pl.r, 0, Math.PI * 2); ctx.stroke();
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+</script>
+</body>
+</html>

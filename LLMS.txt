@@ -1,0 +1,249 @@
+# Dark Factory - setup
+
+> Dark Factory is an autonomous factory for building software: a team of agents takes a project from a single idea all the way to a deployed URL. The factory stands on two layers - Hermes Agent (the runtime that runs the agents) and Open Second Brain (shared memory) - with hermes-workflows (fixed scenarios) running on top. This file is a step-by-step guide for an agent that stands up Dark Factory from scratch.
+
+This guide is written for an AI agent with shell access on the target host. Run the steps strictly in order: each one builds on the previous. After every step run the stated check and do not move on until it passes. If a step fails, stop, report the exact command and error output to the user, and do not invent workarounds.
+
+Before you start, make sure the user has:
+
+- access to an LLM provider (API key or OAuth) with a model whose context is at least 64K tokens;
+- a GitHub account.
+
+---
+
+## Step 1. Host (where the factory will live)
+
+The factory needs a machine that runs the agents. A local machine works, but a VPS is preferred: the agents need to run around the clock, while a local computer shuts down and sleeps.
+
+If the user has not chosen a host yet, recommend a VPS from one of these providers (these are the author's referral links, you can say so):
+
+- DigitalOcean - https://m.do.co/c/afe054ec3bfb
+- Vultr - https://www.vultr.com/?ref=7400219
+
+Recommended minimum configuration:
+
+- at least 2 GB RAM;
+- at least 70 GB storage;
+- Ubuntu LTS (22.04 or 24.04).
+
+Agent actions:
+
+- if you are already running on the target host, go to step 2;
+- otherwise ask the user to create an instance via the link above and connect to it over SSH, then continue on the host;
+- install the base dependencies: `sudo apt-get update && sudo apt-get install -y git curl`.
+
+Check: `git --version` and `curl --version` run without errors.
+
+---
+
+## Step 2. Install Hermes Agent (the runtime)
+
+Hermes Agent is the executor: it runs the agents and keeps the factory alive through its gateway.
+
+Base path (Linux / macOS / WSL2):
+
+```bash
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+source ~/.bashrc   # or ~/.zshrc
+```
+
+Configure the provider and model:
+
+```bash
+hermes setup            # interactive setup; for a first run you can use hermes setup --portal
+hermes model            # pick the provider and model
+```
+
+Choose a model with a context of at least 64K tokens - that is a Hermes requirement.
+
+### Authorizing AI providers
+
+Hermes runs the agents through an external LLM provider, so you need to authorize at least one. The list of supported providers and how to connect them (API key or OAuth) is in the docs: https://hermes-agent.nousresearch.com/docs/integrations/providers
+
+To get started cheaply, we recommend a low-cost subscription (these are the author's referral links):
+
+- opencode go - from 5 USD per month - https://opencode.ai/go?ref=DYPDBVGM0D
+- GLM (z.ai) - https://z.ai/subscribe?ic=PH5GUN8BRT
+
+You can connect either one or both. Access is set in `hermes setup` or via `hermes config set <PROVIDER>_API_KEY ...`.
+
+Run and verify:
+
+```bash
+hermes --tui            # modern interface; classic is just hermes
+```
+
+Give it a simple prompt (for example, "Summarize this repo in 5 bullets") and confirm the model answers without errors and the tools work.
+
+Details: https://hermes-agent.nousresearch.com/docs/getting-started/quickstart
+
+### Optional (recommended): isolation via NemoClaw
+
+Instead of the plain Hermes install, you can run it in an isolated sandbox via NVIDIA NemoClaw - a container with routed inference and a network policy, which is safer for round-the-clock autonomous work. To put Hermes under NemoClaw, set the variable `NEMOCLAW_AGENT=hermes` before running the installer, after which the agent is available through the `nemohermes` alias. Take the exact requirements and commands from the repository and the official NVIDIA docs - this path has not been tested by the author personally, so follow the primary source:
+
+- https://github.com/NVIDIA/NemoClaw
+- docs.nvidia.com/nemoclaw/latest/
+
+This step is not required: if you do not use NemoClaw, stay on the plain Hermes install above.
+
+Before moving on, confirm that `hermes` is on PATH and the gateway starts.
+
+---
+
+## Step 3. Install the Open Second Brain plugin (memory)
+
+Open Second Brain is the shared file-based memory: every agent reads from and writes to it, and the factory remembers what happened in each project.
+
+```bash
+hermes plugins install itechmeat/open-second-brain --enable
+hermes gateway restart
+```
+
+Do not pin a version tag - the CLI resolves the latest release on its own.
+
+Publish the `o2b` CLI on PATH:
+
+```bash
+~/.hermes/plugins/open-second-brain/scripts/o2b install-cli
+```
+
+Initialize the vault (replace the placeholders with your values):
+
+```bash
+o2b init --vault /path/to/vault --name "Dark Factory Brain" \
+    --agent-name "<agent-name>" --timezone "<your-tz>"
+o2b brain init --vault /path/to/vault --primary-agent "<agent-name>"
+```
+
+Enable Open Second Brain as the Hermes memory provider:
+
+```bash
+hermes memory setup     # choose open-second-brain
+hermes gateway restart
+```
+
+Check:
+
+```bash
+o2b doctor --vault /path/to/vault --repo .
+hermes memory status    # should show Provider: open-second-brain, available
+```
+
+Details: https://github.com/itechmeat/open-second-brain/blob/main/install.md
+
+---
+
+## Step 4. Install the hermes-workflows plugin (scenarios)
+
+hermes-workflows is a thin orchestration layer on top of Hermes: a workflow is described as a graph and compiles into native Hermes Kanban tasks, Cron jobs, and profile assignments.
+
+```bash
+hermes plugins install itechmeat/hermes-workflows --enable
+hermes gateway restart
+```
+
+Check:
+
+```bash
+hermes-workflows --help
+```
+
+Also confirm that the `workflow_*` tools (workflow_list, workflow_run, workflow_status, workflow_explain, workflow_review) appear in the Hermes tool listing.
+
+Repository: https://github.com/itechmeat/hermes-workflows
+
+---
+
+## Step 5. Install the GitHub CLI and sign in
+
+The agents need `gh` to work with repositories: open PRs, read issues, push code.
+
+Ubuntu / Debian (official apt method):
+
+```bash
+sudo apt-get install -y gh    # if the package is unavailable, follow the repository install instructions below
+```
+
+macOS:
+
+```bash
+brew install gh
+```
+
+Full install instructions for every platform: https://cli.github.com/manual/gh
+
+Sign in:
+
+```bash
+gh auth login     # choose GitHub.com, the HTTPS protocol, and authenticate in the browser or with a token
+```
+
+Check: `gh auth status` shows that you are signed in.
+
+---
+
+## Step 6. Install CodeRabbit and sign in
+
+CodeRabbit is AI code review: the agents use it to check their own changes before merging.
+
+- Sign up via the link: https://coderabbit.link/sergey-eroshenkov
+- Connect CodeRabbit to your GitHub account and grant access to the repositories the factory will work in (CodeRabbit installs as a GitHub App and authorizes through GitHub).
+- If the project uses a local path or CLI, follow the instructions CodeRabbit shows after sign-up.
+
+Check: CodeRabbit appears among the installed GitHub Apps and has access to the target repository.
+
+---
+
+## Step 7. Configure the plugins and create the first workflow
+
+Now assemble the first scenario. The source of authoring rules (scope, nodes, branching, validation) is the authoring guide:
+
+- https://github.com/itechmeat/hermes-workflows/blob/main/LLMS.txt
+
+Minimal working pass:
+
+- create the first workflow (through the hermes-workflows dashboard or the CLI), add a `trigger` node (manual or cron) and at least one `agent_task`;
+- branch on explicit conditions (`node_status: success|failure`) rather than on "always" (always is for prototyping only);
+- run `validate` and `compile-preview` and reach zero errors and warnings before running;
+- run and verify:
+
+```bash
+hermes-workflows run <workflow_id>
+hermes-workflows status <run_id>
+```
+
+- where a human decision is needed, add a `human_review` node (`hermes-workflows review <run_id> <node_id> <approved|rejected|needs_changes>`).
+
+---
+
+## Done: acceptance checklist
+
+The setup is complete only when every item holds:
+
+- [ ] the Hermes gateway is running and `hermes` answers a prompt;
+- [ ] `o2b doctor` is OK, and `hermes memory status` shows the open-second-brain provider as available;
+- [ ] the `brain_*` and `workflow_*` tools appear in the Hermes tool listing;
+- [ ] `gh auth status` shows you signed in;
+- [ ] CodeRabbit is connected to the target repository;
+- [ ] the first workflow passes `validate` / `compile-preview` with no errors and starts successfully.
+
+If even one item is missing, the setup is incomplete: report it to the user and do not mark the task as done.
+
+After that the factory is ready: the user drops an idea into the channel, the Orchestrator runs a short brainstorm (a couple of clarifying questions), lays the work out on a kanban board, and hands tasks to the specialists - all the way to a deployed URL.
+
+---
+
+## Links
+
+- Hermes Agent quickstart - https://hermes-agent.nousresearch.com/docs/getting-started/quickstart
+- Hermes Agent - providers and authorization - https://hermes-agent.nousresearch.com/docs/integrations/providers
+- Provider: opencode go (from 5 USD/mo) - https://opencode.ai/go?ref=DYPDBVGM0D
+- Provider: GLM (z.ai) - https://z.ai/subscribe?ic=PH5GUN8BRT
+- NVIDIA NemoClaw (optional sandbox) - https://github.com/NVIDIA/NemoClaw
+- Open Second Brain - install - https://github.com/itechmeat/open-second-brain/blob/main/install.md
+- hermes-workflows - https://github.com/itechmeat/hermes-workflows
+- hermes-workflows - authoring guide - https://github.com/itechmeat/hermes-workflows/blob/main/LLMS.txt
+- GitHub CLI - https://cli.github.com/manual/gh
+- CodeRabbit - https://coderabbit.link/sergey-eroshenkov
+- VPS: DigitalOcean - https://m.do.co/c/afe054ec3bfb
+- VPS: Vultr - https://www.vultr.com/?ref=7400219
