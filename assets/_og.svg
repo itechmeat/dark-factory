@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="glow" cx="80%" cy="18%" r="60%">
+      <stop offset="0%" stop-color="#F7A23B" stop-opacity="0.20"/>
+      <stop offset="55%" stop-color="#F7A23B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0A0D15"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <image x="700" y="55" width="560" height="560" opacity="0.16" xlink:href="__CAD__"/>
+
+  <rect x="80" y="92" width="34" height="34" rx="8" fill="#F7A23B"/>
+  <text x="128" y="117" font-family="SF Mono, Menlo, monospace" font-size="26" letter-spacing="4" fill="#ECEEF3">DARK FACTORY</text>
+
+  <text x="76" y="278" font-family="Helvetica Neue, Arial, sans-serif" font-size="90" font-weight="700" letter-spacing="-3" fill="#ECEEF3">You sleep.</text>
+  <text x="76" y="382" font-family="Helvetica Neue, Arial, sans-serif" font-size="90" font-weight="700" letter-spacing="-3" fill="#ECEEF3">The factory ships.</text>
+
+  <text x="80" y="458" font-family="Helvetica Neue, Arial, sans-serif" font-size="30" fill="#8A91A3">An autonomous software factory. Send an idea, wake up to a deployed URL.</text>
+
+  <rect x="80" y="546" width="24" height="24" rx="6" fill="#F7A23B"/>
+  <text x="118" y="566" font-family="SF Mono, Menlo, monospace" font-size="26" letter-spacing="1" fill="#F7A23B">dark-factory.techmeat.dev</text>
+</svg>
